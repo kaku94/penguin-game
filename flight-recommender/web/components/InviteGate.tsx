@@ -25,7 +25,8 @@ export function InviteGate({ onSuccess }: { onSuccess: (code: string, profile: P
         setSubmitting(true);
         setError(null);
         try {
-          if (setup) {
+          // 화면 상태가 아직 안 정해졌을 수 있으니 누르는 시점에 서버에 다시 묻는다
+          if (await needsSetup()) {
             await createFirstInvite(trimmed, "관리자");
           }
           onSuccess(trimmed, await fetchProfile(trimmed));
