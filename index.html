@@ -237,7 +237,7 @@
 
   // ---------- 업데이트 ----------
   function update(dt) {
-    var speed = 200;
+    var speed = 100;
     var dir = (keys.left || held.left ? -1 : 0) + (keys.right || held.right ? 1 : 0);
     penguin.x += dir * speed * dt;
     penguin.x = Math.max(penguin.w / 2, Math.min(W - penguin.w / 2, penguin.x));
@@ -263,9 +263,10 @@
     }
 
     var i, j;
-    for (i = bullets.length - 1; i >= 0; i--) {
-      bullets[i].y -= 480 * dt;
-      if (bullets[i].y < -10) bullets.splice(i, 1);
+    // 총알이 한 프레임에 화면을 넘을 만큼 빨라서 이동 전 위치(py)를 기억해 지나간 구간 전체로 판정
+    for (i = 0; i < bullets.length; i++) {
+      bullets[i].py = bullets[i].y;
+      bullets[i].y -= 48000 * dt;
     }
     for (i = balls.length - 1; i >= 0; i--) {
       var b = balls[i];
@@ -277,9 +278,9 @@
     // 맞히기 판정 (넉넉하게: 눈덩이 반지름 + 여유)
     for (i = balls.length - 1; i >= 0; i--) {
       for (j = bullets.length - 1; j >= 0; j--) {
-        var dx = balls[i].x - bullets[j].x, dy = balls[i].y - bullets[j].y;
+        var dx = balls[i].x - bullets[j].x;
         var rr = balls[i].r * 0.8 + bullets[j].r;
-        if (dx * dx + dy * dy < rr * rr) {
+        if (Math.abs(dx) < rr && balls[i].y > bullets[j].y - rr && balls[i].y < bullets[j].py + rr) {
           bullets.splice(j, 1);
           if (--balls[i].hp > 0) break;
           balls.splice(i, 1);
@@ -289,6 +290,9 @@
           break;
         }
       }
+    }
+    for (j = bullets.length - 1; j >= 0; j--) {
+      if (bullets[j].y < -10) bullets.splice(j, 1);
     }
 
     // 부딪힘 판정 (그림보다 작게)
