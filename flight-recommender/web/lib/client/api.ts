@@ -18,6 +18,21 @@ async function failure(res: Response): Promise<ClientError> {
   return new ClientError(res.status, body?.detail ?? `요청 실패 (${res.status})`);
 }
 
+export async function needsSetup(): Promise<boolean> {
+  const res = await fetch("/api/setup");
+  if (!res.ok) return false;
+  return (await res.json()).needsSetup === true;
+}
+
+export async function createFirstInvite(code: string, name: string): Promise<void> {
+  const res = await fetch("/api/setup", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code, name }),
+  });
+  if (!res.ok) throw await failure(res);
+}
+
 export async function fetchProfile(code: string): Promise<Profile> {
   const res = await fetch("/api/profile", { headers: headers(code) });
   if (!res.ok) throw await failure(res);

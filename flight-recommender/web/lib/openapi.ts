@@ -76,6 +76,28 @@ export const openApiSpec = {
         },
       },
     },
+    "/api/setup": {
+      get: {
+        tags: ["설정"],
+        summary: "최초 설정 필요 여부",
+        security: [],
+        responses: { "200": { description: "{needsSetup: boolean}" } },
+      },
+      post: {
+        tags: ["설정"],
+        summary: "첫 초대코드 만들기 (초대코드가 하나도 없을 때만)",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", required: ["code"], properties: { code: { type: "string", minLength: 6 }, name: { type: "string" } } },
+            },
+          },
+        },
+        responses: { "201": { description: "생성됨" }, "400": problem, "409": problem },
+      },
+    },
     "/api/profile": {
       get: {
         tags: ["프로필"],
