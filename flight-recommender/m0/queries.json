@@ -1,0 +1,12 @@
+[
+  {"id": "q01", "origin": "ICN", "destination": "KIX", "city": "오사카",   "depart": "2026-11-17", "return": "2026-11-18"},
+  {"id": "q02", "origin": "ICN", "destination": "FUK", "city": "후쿠오카", "depart": "2026-11-18", "return": "2026-11-19"},
+  {"id": "q03", "origin": "GMP", "destination": "HND", "city": "도쿄",     "depart": "2026-11-10", "return": "2026-11-11"},
+  {"id": "q04", "origin": "ICN", "destination": "NRT", "city": "도쿄",     "depart": "2026-11-24", "return": "2026-11-25"},
+  {"id": "q05", "origin": "ICN", "destination": "CTS", "city": "삿포로",   "depart": "2026-11-11", "return": "2026-11-12"},
+  {"id": "q06", "origin": "ICN", "destination": "OKA", "city": "오키나와", "depart": "2026-11-04", "return": "2026-11-05"},
+  {"id": "q07", "origin": "GMP", "destination": "KIX", "city": "오사카",   "depart": "2026-11-25", "return": "2026-11-26"},
+  {"id": "q08", "origin": "ICN", "destination": "TPE", "city": "타이베이", "depart": "2026-11-12", "return": "2026-11-13"},
+  {"id": "q09", "origin": "ICN", "destination": "BKK", "city": "방콕",     "depart": "2026-11-16", "return": "2026-11-18"},
+  {"id": "q10", "origin": "ICN", "destination": "DAD", "city": "다낭",     "depart": "2026-11-09", "return": "2026-11-11"}
+]
