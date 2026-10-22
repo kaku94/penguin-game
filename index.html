@@ -247,7 +247,7 @@
     // 자동 발사
     fireT -= dt;
     if (fireT <= 0) {
-      fireT = 1.1;
+      fireT = 0.1;
       bullets.push({ x: penguin.x, y: penguin.y - penguin.h / 2, r: 3.5 });
     }
     // 눈덩이 생성 (빠르고 많이, 맞힐수록 더 거세짐)
@@ -266,7 +266,7 @@
     // 총알이 한 프레임에 화면을 넘을 만큼 빨라서 이동 전 위치(py)를 기억해 지나간 구간 전체로 판정
     for (i = 0; i < bullets.length; i++) {
       bullets[i].py = bullets[i].y;
-      bullets[i].y -= 24000 * dt;
+      bullets[i].y -= 3000 * dt;
     }
     for (i = balls.length - 1; i >= 0; i--) {
       var b = balls[i];
