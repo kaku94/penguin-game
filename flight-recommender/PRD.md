@@ -2,7 +2,7 @@
 
 - 작성일: 2026-10-22
 - 작성자: dbinc.edu1
-- 상태: Draft v0.3 (기술 스택 반영)
+- 상태: Draft v0.4 (Vercel + Supabase 배포 구조)
 
 ---
 
@@ -110,13 +110,13 @@
                            [캐시] 같은 노선·날짜 6시간 TTL
 ```
 
-- **기술 스택**: 프론트 React, 서버 Spring Boot 4 (Java 21, Spring MVC + SSE), DB SQLite (JPA), API 문서 Swagger(springdoc)
-- **LLM**: Claude API (anthropic-java SDK). 파싱용·검색용 모델을 설정(`app.anthropic.parse-model`, `search-model`)으로 따로 둠. 기본값은 Claude Opus 5.5이고, M0 결과를 보고 비용·품질에 따라 Haiku 5.5 등으로 내릴지 결정
+- **기술 스택**: Next.js (React UI + API Routes, TypeScript), Vercel 배포, DB Supabase Postgres, API 문서 Swagger UI(`/docs`). v0.3의 Spring Boot + SQLite 서버는 Vercel 배포를 위해 대체함
+- **LLM**: Claude API (`@anthropic-ai/sdk`). 파싱용·검색용 모델을 환경변수(`PARSE_MODEL`, `SEARCH_MODEL`)로 따로 둠. 기본값은 Claude Opus 5.5이고, M0 결과를 보고 비용·품질에 따라 Haiku 5.5 등으로 내릴지 결정
 - **후보 도시 선정은 질문 해석과 한 번에**: 해석 호출이 후보 도시도 함께 제안하고, 관리 테이블에 없는 경우만 그 제안을 씀 (LLM 호출 1회 절약)
 - **추천 이유 문구는 코드 템플릿으로 생성**: 랭킹 점수 구성요소(최저가 대비 %, 체류시간, 시간대)로 만들어 추가 LLM 호출 없음
 - **랭킹은 LLM이 아닌 코드로 계산**해 결과가 재현되고 디버깅하기 쉽게 함. LLM은 가격·시간을 구조화된 데이터로 뽑는 역할만 맡음.
 - **캐시**: 비용과 속도를 위해 (출발, 도착, 날짜) 키로 검색 결과를 몇 시간 캐시.
-- **배포**: 무료/저가 티어(Vercel, Cloudflare 등) + 경량 DB(SQLite/KV)에 프로필·초대코드·캐시 저장.
+- **배포**: Vercel 무료 플랜(함수 최대 60초 → 검색 제한시간 50초) + Supabase 무료 플랜에 초대코드·프로필·도시 매핑·캐시·검색 기록 저장. 테이블은 RLS로 막고 서버만 service role 키로 접근
 
 ## 8. 비기능 요구사항
 - **성능**: P90 60초 이내. 넘으면 그때까지 모인 결과로 부분 응답하고 "추가 검색" 버튼 제공.
