@@ -250,16 +250,17 @@
       fireT = 0.1;
       bullets.push({ x: penguin.x, y: penguin.y - penguin.h / 2, r: 3.5 });
     }
-    // 눈덩이 생성 (빠르고 많이, 맞힐수록 더 거세짐)
+    // 눈 블록 생성 (아주 빠르고 많고 단단함, 일부는 펭귄을 쫓아옴, 맞힐수록 더 거세짐)
     spawnT -= dt;
     if (spawnT <= 0) {
       var lv = hits / GOAL;
-      spawnT = (0.45 + Math.random() * 0.35) * (1 - 0.35 * lv);
-      var r = 14 + Math.random() * 12;
-      balls.push({ x: r + Math.random() * (W - 2 * r), y: -r, r: r, hp: r > 22 ? 2 : 1,
-        vy: (110 + Math.random() * 60) * (1 + 0.6 * lv), rot: Math.random() * 6,
-        x0: 0, amp: Math.random() < 0.6 ? 20 + Math.random() * 40 : 0, ph: Math.random() * 6, hz: 1.5 + Math.random() * 2 });
-      balls[balls.length - 1].x0 = balls[balls.length - 1].x;
+      spawnT = (0.12 + Math.random() * 0.13) * (1 - 0.4 * lv);
+      var r = 12 + Math.random() * 12;
+      var bx = r + Math.random() * (W - 2 * r);
+      balls.push({ x: bx, y: -r, r: r, hp: 3 + Math.floor(Math.random() * 6),
+        vy: (220 + Math.random() * 120) * (1 + 0.8 * lv), rot: Math.random() * 6,
+        x0: bx, amp: Math.random() < 0.85 ? 40 + Math.random() * 60 : 0, ph: Math.random() * 6, hz: 2 + Math.random() * 3,
+        homing: Math.random() < 0.35 });
     }
 
     var i, j;
@@ -271,15 +272,16 @@
     for (i = balls.length - 1; i >= 0; i--) {
       var b = balls[i];
       b.y += b.vy * dt; b.rot += dt;
-      if (b.amp) b.x = Math.max(b.r, Math.min(W - b.r, b.x0 + Math.sin(b.ph + b.y / 60 * b.hz) * b.amp));
+      if (b.homing) b.x0 += Math.max(-1, Math.min(1, (penguin.x - b.x0) / 20)) * 90 * dt;
+      b.x = Math.max(b.r, Math.min(W - b.r, b.x0 + (b.amp ? Math.sin(b.ph + b.y / 60 * b.hz) * b.amp : 0)));
       if (b.y - b.r > H) { balls.splice(i, 1); continue; }
     }
 
-    // 맞히기 판정 (넉넉하게: 눈덩이 반지름 + 여유)
+    // 맞히기 판정 (빡빡하게: 블록 중심 근처만)
     for (i = balls.length - 1; i >= 0; i--) {
       for (j = bullets.length - 1; j >= 0; j--) {
         var dx = balls[i].x - bullets[j].x;
-        var rr = balls[i].r * 0.8 + bullets[j].r;
+        var rr = balls[i].r * 0.6 + bullets[j].r;
         if (Math.abs(dx) < rr && balls[i].y > bullets[j].y - rr && balls[i].y < bullets[j].py + rr) {
           bullets.splice(j, 1);
           if (--balls[i].hp > 0) break;
@@ -295,11 +297,11 @@
       if (bullets[j].y < -10) bullets.splice(j, 1);
     }
 
-    // 부딪힘 판정 (그림보다 작게)
+    // 부딪힘 판정 (그림보다 크게)
     if (invuln <= 0) {
       for (i = balls.length - 1; i >= 0; i--) {
         var ex = balls[i].x - penguin.x, ey = balls[i].y - (penguin.y + 4);
-        var hr = balls[i].r * 0.9 + 14;
+        var hr = balls[i].r + 18;
         if (ex * ex + ey * ey < hr * hr) {
           balls.splice(i, 1);
           lives--; invuln = INVULN;
@@ -311,117 +313,132 @@
     }
   }
 
-  // ---------- 그리기 ----------
+  // ---------- 그리기 (마인크래프트풍 3D 시점) ----------
+  // 게임 판정은 그대로 평면(x, y)에서 하고, 그릴 때만 펭귄 뒤쪽 위에서 내려다보는 원근으로 바꿈
+  // y가 작을수록 멀리, 펭귄(y=480)에서 크기 1배
+  var HORIZON = 63, CAM_H = 417, FAR_Y = -80;
+  function proj(x, y, h) {
+    var s = 200 / (200 + (480 - y) * 0.6);
+    return [W / 2 + (x - W / 2) * s, HORIZON + (CAM_H - h) * s, s];
+  }
+  function quad(a, b, c, d, fill) {
+    ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+  }
+  // 상자 하나: 가운데 (x, y), 바닥 높이 z, 크기 w×d×h, 색 [윗면, 앞면, 옆면]
+  function box(x, y, z, w, d, h, c) {
+    var x0 = x - w / 2, x1 = x + w / 2, yf = y + d / 2, yb = y - d / 2, z1 = z + h;
+    ctx.strokeStyle = "rgba(0,0,0,0.28)"; ctx.lineWidth = 1;
+    if (x1 < W / 2) quad(proj(x1, yf, z), proj(x1, yb, z), proj(x1, yb, z1), proj(x1, yf, z1), c[2]);
+    else if (x0 > W / 2) quad(proj(x0, yf, z), proj(x0, yb, z), proj(x0, yb, z1), proj(x0, yf, z1), c[2]);
+    quad(proj(x0, yf, z1), proj(x1, yf, z1), proj(x1, yb, z1), proj(x0, yb, z1), c[0]);
+    quad(proj(x0, yf, z), proj(x1, yf, z), proj(x1, yf, z1), proj(x0, yf, z1), c[1]);
+  }
+  function shadow(x, y, w) {
+    var p = proj(x, y, 0);
+    ctx.fillStyle = "rgba(40,70,110,0.25)";
+    ctx.fillRect(p[0] - w * p[2] / 2, p[1] - w * p[2] * 0.12, w * p[2], w * p[2] * 0.24);
+  }
+
   function drawBg() {
-    var t = (lastT || 0) / 1000, i;
+    var t = (lastT || 0) / 1000, i, x;
+    var far = proj(0, FAR_Y, 0)[1];
     // 하늘
-    var g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#0b2a4a"); g.addColorStop(0.45, "#3f86b8"); g.addColorStop(0.75, "#b9e2f5"); g.addColorStop(1, "#e8f6ff");
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    // 오로라
-    for (i = 0; i < 3; i++) {
-      var ag = ctx.createLinearGradient(0, 0, 0, 190);
-      var col = i === 1 ? "120,255,200" : (i === 2 ? "150,140,255" : "90,255,170");
-      ag.addColorStop(0, "rgba(" + col + ",0)"); ag.addColorStop(0.5, "rgba(" + col + ",0.28)"); ag.addColorStop(1, "rgba(" + col + ",0)");
-      ctx.fillStyle = ag;
-      ctx.beginPath(); ctx.moveTo(0, 0);
-      for (var x = 0; x <= W; x += 20) ctx.lineTo(x, 40 + i * 28 + Math.sin(x / 55 + t * (0.6 + i * 0.25) + i * 2) * 22);
-      ctx.lineTo(W, 190); ctx.lineTo(0, 190); ctx.closePath(); ctx.fill();
+    var g = ctx.createLinearGradient(0, 0, 0, far);
+    g.addColorStop(0, "#3d7fd9"); g.addColorStop(1, "#a9d4ff");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, far + 1);
+    // 네모난 해
+    ctx.fillStyle = "#fff6c8"; ctx.fillRect(268, 26, 34, 34);
+    ctx.fillStyle = "#ffe98a"; ctx.fillRect(274, 32, 22, 22);
+    // 네모 구름 (흘러감)
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    for (i = 0; i < 4; i++) {
+      var cx = ((i * 130 + t * (10 + i * 4)) % (W + 140)) - 70, cy = 40 + i * 30;
+      ctx.fillRect(cx, cy, 64, 12); ctx.fillRect(cx + 12, cy - 10, 36, 10);
     }
-    // 별
-    ctx.fillStyle = "#fff";
-    for (i = 0; i < 18; i++) {
-      ctx.globalAlpha = 0.4 + 0.4 * Math.sin(t * 2 + i * 1.7);
-      ctx.beginPath(); ctx.arc((i * 73) % W, (i * 37) % 130, 1.2, 0, 6.3); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    // 흘러가는 구름
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    for (i = 0; i < 3; i++) {
-      var cx = ((i * 170 + t * (8 + i * 4)) % (W + 160)) - 80, cy = 150 + i * 45;
-      ctx.beginPath(); ctx.ellipse(cx, cy, 55, 12, 0, 0, 6.3); ctx.ellipse(cx + 28, cy - 8, 32, 11, 0, 0, 6.3); ctx.fill();
-    }
-    // 먼 산 (천천히 이동)
-    function range(speed, base, hgt, fill, seed) {
-      ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(0, H);
-      var off = (t * speed) % 240;
-      for (var x = -240; x <= W + 240; x += 120) {
-        var px = x - off, h = hgt * (0.6 + 0.4 * Math.abs(Math.sin((x + seed) * 0.05 + seed)));
-        ctx.lineTo(px, base); ctx.lineTo(px + 60, base - h); ctx.lineTo(px + 120, base);
+    // 계단 모양 눈 산 (천천히 이동)
+    for (var k = 0; k < 2; k++) {
+      var off = (t * (3 + k * 5)) % 12;
+      for (x = -12; x < W + 12; x += 12) {
+        var n = Math.floor((x + Math.floor(t * (3 + k * 5) / 12) * 12) / 12);
+        var hgt = 12 * (2 + Math.floor(Math.abs(Math.sin(n * 0.7 + k * 3) * 3 + Math.sin(n * 0.23 + k) * 2)));
+        hgt = hgt / (k + 1);
+        var px = x - off;
+        ctx.fillStyle = k === 0 ? "#8fb4d6" : "#b7d3ea"; ctx.fillRect(px, far - hgt, 12, hgt);
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(px, far - hgt, 12, 6);
       }
-      ctx.lineTo(W + 240, H); ctx.closePath(); ctx.fill();
     }
-    range(3, 330, 110, "#9cc4e0", 1);
-    range(7, 360, 80, "#cfe8f8", 3);
-    // 떠다니는 빙산
-    for (i = 0; i < 2; i++) {
-      var bx = ((i * 230 + t * 12) % (W + 120)) - 60, by = 372 + i * 6;
-      ctx.fillStyle = "#e3f3ff";
-      ctx.beginPath(); ctx.moveTo(bx - 30, by); ctx.lineTo(bx - 10, by - 28 - i * 6); ctx.lineTo(bx + 6, by - 14); ctx.lineTo(bx + 18, by - 32); ctx.lineTo(bx + 34, by); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "rgba(120,170,210,0.45)";
-      ctx.beginPath(); ctx.moveTo(bx + 18, by - 32); ctx.lineTo(bx + 34, by); ctx.lineTo(bx + 6, by); ctx.closePath(); ctx.fill();
+    // 바닥: 양옆 얼음물
+    var nl = proj(-600, H + 40, 0), nr = proj(W + 600, H + 40, 0), fl = proj(-600, FAR_Y, 0), fr = proj(W + 600, FAR_Y, 0);
+    ctx.fillStyle = "#3f86c4";
+    ctx.beginPath(); ctx.moveTo(fl[0], fl[1]); ctx.lineTo(fr[0], fr[1]); ctx.lineTo(nr[0], nr[1]); ctx.lineTo(nl[0], nl[1]); ctx.closePath(); ctx.fill();
+    // 경기장: 눈 블록 바닥 (앞으로 흘러와서 달리는 느낌)
+    ctx.strokeStyle = "rgba(120,160,200,0.35)"; ctx.lineWidth = 1;
+    var T = 40, scroll = (t * 70) % (T * 2);
+    for (var row = -1; row < 16; row++) {
+      var y0 = FAR_Y + row * T + scroll - T * 2, y1 = y0 + T;
+      if (y1 < FAR_Y) continue;
+      y0 = Math.max(y0, FAR_Y);
+      for (var col = 0; col < W / T; col++) {
+        var even = (row + col) % 2 === 0;
+        quad(proj(col * T, y1, 0), proj(col * T + T, y1, 0), proj(col * T + T, y0, 0), proj(col * T, y0, 0), even ? "#f2f8ff" : "#dfecf8");
+      }
     }
-    // 바다 물결
-    ctx.fillStyle = "#4f9cc9"; ctx.fillRect(0, 376, W, 22);
-    ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1.5;
-    for (i = 0; i < 3; i++) {
-      ctx.beginPath();
-      for (x = 0; x <= W; x += 8) { var wy = 384 + i * 6 + Math.sin(x / 18 + t * 2 + i) * 1.8; if (x === 0) ctx.moveTo(x, wy); else ctx.lineTo(x, wy); }
-      ctx.stroke();
+    // 양쪽 얼음 블록 벽
+    for (var wy = FAR_Y + 20 + (scroll % T) - T; wy < H + 40; wy += T) {
+      if (wy < FAR_Y + 20) continue;
+      box(-20, wy, 0, 40, 40, 20, ["#cdeaff", "#9fcbee", "#b5dbf6"]);
+      box(W + 20, wy, 0, 40, 40, 20, ["#cdeaff", "#9fcbee", "#b5dbf6"]);
     }
-    // 얼음 땅
-    var ig = ctx.createLinearGradient(0, 398, 0, H);
-    ig.addColorStop(0, "#f4fbff"); ig.addColorStop(1, "#cfe6f5");
-    ctx.fillStyle = ig; ctx.fillRect(0, 398, W, H - 398);
-    ctx.strokeStyle = "rgba(150,195,225,0.6)"; ctx.lineWidth = 1;
-    for (i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(i * 90 + 20, 420 + (i % 2) * 30); ctx.lineTo(i * 90 + 60, 436 + (i % 2) * 30); ctx.stroke(); }
-    // 눈보라 (두 겹으로 흩날림)
+  }
+  function drawSnow() {
+    var t = (lastT || 0) / 1000;
     ctx.fillStyle = "#fff";
-    for (i = 0; i < 60; i++) {
-      var layer = i % 3, sp = 25 + layer * 22;
-      var fx = (i * 61 + Math.sin(t * 0.8 + i) * 14 + t * (6 + layer * 5)) % W;
-      var fy = (i * 47 + t * sp) % H;
-      ctx.globalAlpha = 0.5 + layer * 0.2;
-      ctx.beginPath(); ctx.arc(fx, fy, 1 + layer * 0.7, 0, 6.3); ctx.fill();
+    for (var i = 0; i < 50; i++) {
+      var layer = i % 3, sz = 2 + layer;
+      var fx = (i * 61 + t * (6 + layer * 5)) % W;
+      var fy = (i * 47 + t * (30 + layer * 25)) % H;
+      ctx.globalAlpha = 0.55 + layer * 0.15;
+      ctx.fillRect(Math.floor(fx), Math.floor(fy), sz, sz);
     }
     ctx.globalAlpha = 1;
   }
+  var BLOCK = [
+    ["#ffffff", "#e3eef9", "#eef5fc"],   // 눈 (거의 부서짐)
+    ["#cfe6fb", "#9fc6ea", "#b6d5f2"],   // 단단한 눈
+    ["#7fb2e8", "#4d86c8", "#6599d6"]    // 얼음 (아주 단단함)
+  ];
   function drawBall(b) {
-    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
-    var g = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.3, 2, 0, 0, b.r);
-    g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#bcd6f2");
-    ctx.fillStyle = g; ctx.strokeStyle = b.hp > 1 ? "#2a5fa8" : "#7fa6d6"; ctx.lineWidth = b.hp > 1 ? 4 : 2;
-    ctx.beginPath(); ctx.arc(0, 0, b.r, 0, 6.3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "rgba(127,166,214,0.6)";
-    ctx.beginPath(); ctx.arc(b.r * 0.3, b.r * 0.2, b.r * 0.16, 0, 6.3); ctx.fill();
-    ctx.beginPath(); ctx.arc(-b.r * 0.35, b.r * 0.35, b.r * 0.1, 0, 6.3); ctx.fill();
-    ctx.restore();
+    var sz = b.r * 1.8, bob = 4 + Math.sin(b.rot * 4) * 3;
+    shadow(b.x, b.y, sz);
+    box(b.x, b.y, bob, sz, sz, sz, BLOCK[b.hp >= 6 ? 2 : (b.hp >= 3 ? 1 : 0)]);
+  }
+  function drawBullet(u) {
+    box(u.x, u.y, 26, 7, 7, 7, ["#c9fbff", "#5fd8f0", "#8fe8f8"]);
   }
   function drawPenguin(p) {
-    ctx.save(); ctx.translate(p.x, p.y);
-    ctx.fillStyle = "#ff9d2e"; // 발
-    ctx.beginPath(); ctx.ellipse(-9, 25, 9, 4, 0, 0, 6.3); ctx.ellipse(9, 25, 9, 4, 0, 0, 6.3); ctx.fill();
-    ctx.fillStyle = "#1b2a44"; // 날개
-    ctx.beginPath(); ctx.ellipse(-21, 4, 6, 15, 0.35, 0, 6.3); ctx.ellipse(21, 4, 6, 15, -0.35, 0, 6.3); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(0, 0, 22, 27, 0, 0, 6.3); ctx.fill(); // 몸
-    ctx.fillStyle = "#fff"; // 배
-    ctx.beginPath(); ctx.ellipse(0, 7, 14, 18, 0, 0, 6.3); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(-8, -13, 7, 8, 0, 0, 6.3); ctx.ellipse(8, -13, 7, 8, 0, 0, 6.3); ctx.fill(); // 눈 흰자
-    ctx.fillStyle = "#111";
-    ctx.beginPath(); ctx.arc(-7, -12, 3, 0, 6.3); ctx.arc(7, -12, 3, 0, 6.3); ctx.fill();
-    ctx.fillStyle = "#ff9d2e"; // 부리
-    ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(6, -6); ctx.lineTo(0, 3); ctx.closePath(); ctx.fill();
-    ctx.restore();
+    var x = p.x, y = p.y;
+    shadow(x, y, 46);
+    var feet = ["#ffb347", "#e8891c", "#f59d2e"], dark = ["#2c3e60", "#1b2a44", "#13203a"];
+    box(x - 9, y + 4, 0, 12, 12, 6, feet);
+    box(x + 9, y + 4, 0, 12, 12, 6, feet);
+    box(x - 21, y, 12, 8, 14, 24, dark);
+    box(x + 21, y, 12, 8, 14, 24, dark);
+    box(x, y, 6, 34, 22, 34, dark);
+    box(x, y - 4, 40, 28, 22, 22, dark);
+    // 뒤통수 쪽에서 살짝 보이는 부리
+    box(x, y - 18, 46, 10, 6, 6, feet);
   }
   function draw() {
     drawBg();
-    var i;
-    for (i = 0; i < balls.length; i++) drawBall(balls[i]);
-    ctx.fillStyle = "#9fe8ff"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
-    for (i = 0; i < bullets.length; i++) {
-      ctx.beginPath(); ctx.arc(bullets[i].x, bullets[i].y, bullets[i].r, 0, 6.3); ctx.fill(); ctx.stroke();
-    }
-    if (invuln <= 0 || Math.floor(invuln * 10) % 2 === 0) drawPenguin(penguin);
+    var list = [], i;
+    for (i = 0; i < balls.length; i++) list.push({ y: balls[i].y, f: drawBall, o: balls[i] });
+    for (i = 0; i < bullets.length; i++) if (bullets[i].y > FAR_Y) list.push({ y: bullets[i].y, f: drawBullet, o: bullets[i] });
+    if (invuln <= 0 || Math.floor(invuln * 10) % 2 === 0) list.push({ y: penguin.y, f: drawPenguin, o: penguin });
+    list.sort(function (a, b) { return a.y - b.y; });
+    for (i = 0; i < list.length; i++) list[i].f(list[i].o);
+    drawSnow();
   }
 
   function loop(t) {
