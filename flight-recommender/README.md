@@ -20,6 +20,8 @@
    | `INVITE_CODES` | 초대코드 목록. `코드:이름:일일한도`를 쉼표로 구분 (예: `my-code:나:20,friend-code:친구`) |
 4. **Redeploy** — 환경변수를 넣은 뒤 Deployments에서 다시 배포
 
+> Vercel Hobby 플랜은 최신 커밋의 작성자 이메일이 Vercel 계정과 연결된 GitHub 계정의 것이어야 배포한다. 배포가 Blocked 되면 GitHub noreply 이메일(`ID+아이디@users.noreply.github.com`)로 커밋한다.
+
 테이블은 서버가 처음 DB를 쓸 때 자동으로 만들어지고(`web/lib/schema.ts`), `INVITE_CODES`의 코드도 그때 등록된다. 모든 테이블은 RLS로 막혀 있어 서버의 직접 연결로만 접근된다.
 
 배포 후 `/` 가 채팅 화면, `/docs` 가 Swagger UI.
