@@ -1,6 +1,8 @@
--- 항공권 추천 스키마. Supabase SQL Editor에 붙여 실행하거나 `supabase db push` 로 적용한다.
--- 모든 테이블은 RLS를 켜고 정책을 두지 않는다 → 서버(service role 키)만 접근 가능.
-
+/**
+ * DB 스키마. 서버가 처음 DB를 쓸 때 한 번 실행한다(모든 문장이 여러 번 실행해도 안전).
+ * 모든 테이블은 RLS를 켜고 정책을 두지 않는다 → Supabase 공개 API로는 접근 불가, 서버의 직접 연결만 가능.
+ */
+export const SCHEMA_SQL = `
 create table if not exists invite_codes (
   code        text primary key,
   name        text not null,
@@ -72,6 +74,20 @@ select * from (values
   ('동남아', '맛집', '타이베이', '{TPE}'::text[],     '야시장·우육면·딤섬')
 ) as seed(region, purpose, city, airport_codes, reason)
 where not exists (select 1 from city_mappings);
+`;
 
--- 초대코드는 직접 만든다. 예:
--- insert into invite_codes (code, name, daily_limit) values ('원하는-코드', '나', 20);
+/**
+ * INVITE_CODES 환경변수 → 초대코드 목록. 형식: "코드:이름:일일한도,코드2:이름2" (이름·한도는 생략 가능)
+ */
+export function parseInviteCodes(value: string | undefined): { code: string; name: string; dailyLimit: number }[] {
+  return (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [code, name, limit] = entry.split(":").map((s) => s.trim());
+      const dailyLimit = Number(limit);
+      return { code, name: name || code, dailyLimit: Number.isInteger(dailyLimit) && dailyLimit > 0 ? dailyLimit : 20 };
+    })
+    .filter((c) => c.code.length > 0);
+}

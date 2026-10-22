@@ -1,5 +1,5 @@
+import { db } from "./db";
 import { ApiError } from "./errors";
-import { check, db } from "./supabase";
 
 export const INVITE_HEADER = "x-invite-code";
 
@@ -9,14 +9,9 @@ export type Invite = { code: string; name: string; daily_limit: number };
 export async function requireInvite(request: Request): Promise<Invite> {
   const code = request.headers.get(INVITE_HEADER)?.trim();
   if (code) {
-    const invite = check(
-      await db()
-        .from("invite_codes")
-        .select("code, name, daily_limit")
-        .eq("code", code)
-        .eq("active", true)
-        .maybeSingle<Invite>(),
-    );
+    const sql = await db();
+    const [invite] = await sql<Invite[]>`
+      select code, name, daily_limit from invite_codes where code = ${code} and active`;
     if (invite) {
       return invite;
     }

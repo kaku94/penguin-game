@@ -1,7 +1,7 @@
 import { z } from "zod";
 
+import { db } from "./db";
 import type { CarrierPreference } from "./search/types";
-import { check, db } from "./supabase";
 
 export const DEFAULT_HOME_AIRPORTS = ["ICN", "GMP"];
 
@@ -19,26 +19,22 @@ type Row = { home_airports: string[]; carrier_preference: CarrierPreference };
 
 /** 저장한 적이 없으면 기본값(ICN, GMP / 항공사 무관) */
 export async function getProfile(inviteCode: string): Promise<Profile> {
-  const row = check(
-    await db()
-      .from("user_profiles")
-      .select("home_airports, carrier_preference")
-      .eq("invite_code", inviteCode)
-      .maybeSingle<Row>(),
-  );
+  const sql = await db();
+  const [row] = await sql<Row[]>`
+    select home_airports, carrier_preference from user_profiles where invite_code = ${inviteCode}`;
   return row
     ? { homeAirports: row.home_airports, carrierPreference: row.carrier_preference }
     : { homeAirports: DEFAULT_HOME_AIRPORTS, carrierPreference: "ANY" };
 }
 
 export async function saveProfile(inviteCode: string, profile: Profile): Promise<Profile> {
-  check(
-    await db().from("user_profiles").upsert({
-      invite_code: inviteCode,
-      home_airports: profile.homeAirports,
-      carrier_preference: profile.carrierPreference,
-      updated_at: new Date().toISOString(),
-    }),
-  );
+  const sql = await db();
+  await sql`
+    insert into user_profiles (invite_code, home_airports, carrier_preference, updated_at)
+    values (${inviteCode}, ${profile.homeAirports}, ${profile.carrierPreference}, now())
+    on conflict (invite_code) do update
+      set home_airports = excluded.home_airports,
+          carrier_preference = excluded.carrier_preference,
+          updated_at = now()`;
   return profile;
 }

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { config } from "../config";
-import { check, db } from "../supabase";
+import { db } from "../db";
 import { searchFlights } from "./flightSearch";
 import { ZERO_USAGE, type CarrierPreference, type DatePair, type Destination, type FlightOffer, type Usage } from "./types";
 
@@ -19,16 +19,11 @@ export async function cachedSearchFlights(
       [config.searchModel, origins.join(","), destination.airports.join(","), JSON.stringify(datePairs), preference].join("|"),
     )
     .digest("hex");
-  const freshAfter = new Date(Date.now() - config.search.cacheTtlMs).toISOString();
+  const freshAfter = new Date(Date.now() - config.search.cacheTtlMs);
 
-  const cached = check(
-    await db()
-      .from("search_cache")
-      .select("offers")
-      .eq("cache_key", key)
-      .gt("created_at", freshAfter)
-      .maybeSingle<{ offers: FlightOffer[] }>(),
-  );
+  const sql = await db();
+  const [cached] = await sql<{ offers: FlightOffer[] }[]>`
+    select offers from search_cache where cache_key = ${key} and created_at > ${freshAfter}`;
   if (cached) {
     return { offers: cached.offers, usage: ZERO_USAGE };
   }
@@ -36,11 +31,10 @@ export async function cachedSearchFlights(
   const result = await searchFlights(origins, destination, datePairs, preference, maxWebSearches, signal);
   // 못 찾은 결과까지 캐시하면 일시적 실패가 TTL 동안 굳으므로 찾은 경우만 저장
   if (result.offers.length > 0) {
-    check(
-      await db()
-        .from("search_cache")
-        .upsert({ cache_key: key, offers: result.offers, created_at: new Date().toISOString() }),
-    );
+    await sql`
+      insert into search_cache (cache_key, offers, created_at)
+      values (${key}, ${sql.json(result.offers)}, now())
+      on conflict (cache_key) do update set offers = excluded.offers, created_at = now()`;
   }
   return result;
 }

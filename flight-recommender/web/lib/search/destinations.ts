@@ -1,4 +1,4 @@
-import { check, db } from "../supabase";
+import { db } from "../db";
 import type { Destination, TripQuery } from "./types";
 
 type CityMappingRow = { city: string; airport_codes: string[]; reason: string };
@@ -8,17 +8,11 @@ export async function resolveDestinations(query: TripQuery, maxCities: number): 
   if (query.citiesExplicit) {
     return fromSuggestions(query, "USER", maxCities);
   }
-  const mapped =
-    check(
-    await db()
-      .from("city_mappings")
-      .select("city, airport_codes, reason")
-      .eq("region", query.region)
-      .eq("purpose", query.purpose)
-      .order("id")
-      .limit(maxCities)
-      .returns<CityMappingRow[]>(),
-    ) ?? [];
+  const sql = await db();
+  const mapped = await sql<CityMappingRow[]>`
+    select city, airport_codes, reason from city_mappings
+    where region = ${query.region} and purpose = ${query.purpose}
+    order by id limit ${maxCities}`;
   if (mapped.length > 0) {
     return mapped.map((m) => ({ city: m.city, airports: m.airport_codes, reason: m.reason, source: "TABLE" }));
   }

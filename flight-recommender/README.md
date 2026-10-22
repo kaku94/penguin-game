@@ -5,29 +5,22 @@
 | 폴더 | 내용 |
 |---|---|
 | `web/` | Next.js 앱 (React 채팅 UI + API Routes). Vercel에 배포 |
-| `web/supabase/migrations/` | Supabase 스키마 |
 | `m0/` | 웹 검색 가격 정확도 검증 스크립트 (Python) |
 
 ## 배포 (Vercel + Supabase)
 
-1. **Supabase 프로젝트 만들기** — [supabase.com](https://supabase.com)에서 새 프로젝트 (리전: Northeast Asia (Seoul) 권장)
-2. **스키마 적용** — Supabase 대시보드 > SQL Editor에 `web/supabase/migrations/0001_init.sql` 내용을 붙여 실행
-3. **초대코드 만들기** — 같은 SQL Editor에서:
-   ```sql
-   insert into invite_codes (code, name, daily_limit) values ('원하는-코드', '나', 20);
-   ```
-4. **Vercel 프로젝트 만들기** — [vercel.com/new](https://vercel.com/new)에서 이 GitHub 저장소를 Import
+1. **Vercel 프로젝트 만들기** — [vercel.com/new](https://vercel.com/new)에서 이 GitHub 저장소를 Import
    - Root Directory: `web`
    - Framework: Next.js (자동 인식)
-5. **환경변수** — Vercel 프로젝트 Settings > Environment Variables
+2. **Supabase 연결** — 프로젝트의 Storage(또는 Import 화면의 Optional Integrations)에서 Supabase 추가. `POSTGRES_URL` 등이 자동으로 들어온다
+3. **환경변수** — Vercel 프로젝트 Settings > Environment Variables
    | 이름 | 값 |
    |---|---|
    | `ANTHROPIC_API_KEY` | Anthropic Console에서 발급 |
-   | `SUPABASE_URL` | Supabase Project Settings > API > Project URL |
-   | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Project Settings > API > service_role (또는 secret) 키 |
+   | `INVITE_CODES` | 초대코드 목록. `코드:이름:일일한도`를 쉼표로 구분 (예: `my-code:나:20,friend-code:친구`) |
+4. **Redeploy** — 환경변수를 넣은 뒤 Deployments에서 다시 배포
 
-   Vercel Marketplace의 Supabase 연동을 쓰면 Supabase 값은 자동으로 들어온다.
-6. **Redeploy** — 환경변수를 넣은 뒤 Deployments에서 다시 배포
+테이블은 서버가 처음 DB를 쓸 때 자동으로 만들어지고(`web/lib/schema.ts`), `INVITE_CODES`의 코드도 그때 등록된다. 모든 테이블은 RLS로 막혀 있어 서버의 직접 연결로만 접근된다.
 
 배포 후 `/` 가 채팅 화면, `/docs` 가 Swagger UI.
 
