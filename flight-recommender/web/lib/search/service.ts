@@ -7,9 +7,10 @@ import { generateDatePairs, todayInSeoul } from "./dates";
 import { resolveDestinations } from "./destinations";
 import { parseQuestionFree } from "./freeParse";
 import { parseQuestion } from "./parse";
+import { parseQuestionRules } from "./ruleParse";
 import { suggest } from "./suggest";
 import { rank, type CityOffer } from "./rank";
-import { ZERO_USAGE, addUsage, type ParsedSummary, type SearchResponse, type Usage } from "./types";
+import { ZERO_USAGE, addUsage, type ParsedSummary, type SearchResponse, type TripQuery, type Usage } from "./types";
 import { checkUsage, finishSearchLog, startSearchLog } from "./usage";
 
 /** 검색 진행상황 콜백 (PRD F8). SSE 스트리밍에서 쓰고, 동기 API는 무시한다. */
@@ -62,7 +63,7 @@ async function run(
   const profile = await getProfile(invite.code);
 
   listener.progress?.("질문을 해석하는 중...");
-  const parsed = config.mode === "free" ? await parseQuestionFree(question, today) : await parseQuestion(question, today);
+  const parsed = config.mode === "free" ? await parseFree(question, today) : await parseQuestion(question, today);
   const query = parsed.query;
   usage.current = parsed.usage;
 
@@ -172,4 +173,24 @@ async function run(
       estimatedCostUsd: Math.round(costUsd(u.inputTokens, u.outputTokens, u.webSearches) * 10000) / 10000,
     },
   };
+}
+
+/**
+ * 무료 모드 해석: 규칙 기반 파서가 먼저, 목적지를 못 찾으면 AI Gateway 무료 모델에 맡긴다.
+ * (AI Gateway는 Vercel 계정에 카드가 등록돼 있어야 동작하므로 실패해도 안내만 한다.)
+ */
+async function parseFree(question: string, today: string): Promise<{ query: TripQuery; usage: Usage }> {
+  const query = parseQuestionRules(question, today);
+  if (query) {
+    return { query, usage: ZERO_USAGE };
+  }
+  try {
+    return await parseQuestionFree(question, today);
+  } catch (e) {
+    console.warn("무료 AI 해석 실패", e);
+    throw new ApiError(
+      400,
+      "어디로 갈지 알아듣지 못했어요. 나라나 도시 이름을 넣어 다시 물어봐주세요. 예: '11월 평일에 오사카 1박2일'",
+    );
+  }
 }
