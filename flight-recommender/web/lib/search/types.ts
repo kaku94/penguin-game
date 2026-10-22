@@ -111,10 +111,23 @@ export type Recommendation = {
   bookingLinks: Link[];
 };
 
+/** 무료 모드 추천: 가격 없이 도시·날짜와 예약 링크만 */
+export type Suggestion = {
+  city: string;
+  originAirport: string;
+  destinationAirport: string;
+  departDate: string;
+  returnDate: string;
+  reason: string;
+  bookingLinks: Link[];
+};
+
 export type SearchResponse = {
   question: string;
+  mode: "claude" | "free";
   parsed: ParsedSummary;
   recommendations: Recommendation[];
+  suggestions: Suggestion[];
   /** 시간 제한에 걸려 일부 도시 검색 결과가 빠졌으면 true */
   partial: boolean;
   notices: string[];

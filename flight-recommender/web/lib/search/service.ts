@@ -5,7 +5,9 @@ import { getProfile } from "../profile";
 import { cachedSearchFlights } from "./cache";
 import { generateDatePairs, todayInSeoul } from "./dates";
 import { resolveDestinations } from "./destinations";
+import { parseQuestionFree } from "./freeParse";
 import { parseQuestion } from "./parse";
+import { suggest } from "./suggest";
 import { rank, type CityOffer } from "./rank";
 import { ZERO_USAGE, addUsage, type ParsedSummary, type SearchResponse, type Usage } from "./types";
 import { checkUsage, finishSearchLog, startSearchLog } from "./usage";
@@ -60,7 +62,7 @@ async function run(
   const profile = await getProfile(invite.code);
 
   listener.progress?.("질문을 해석하는 중...");
-  const parsed = await parseQuestion(question, today);
+  const parsed = config.mode === "free" ? await parseQuestionFree(question, today) : await parseQuestion(question, today);
   const query = parsed.query;
   usage.current = parsed.usage;
 
@@ -93,6 +95,28 @@ async function run(
     assumptions: query.assumptions,
   };
   listener.parsed?.(summary);
+
+  if (config.mode === "free") {
+    const u = usage.current;
+    return {
+      question,
+      mode: "free",
+      parsed: summary,
+      recommendations: [],
+      suggestions: suggest(cities, datePairs, origins, passengers),
+      partial: false,
+      notices: [
+        "무료 체험판이라 가격은 찾지 않았어요. 싼 편인 요일 위주로 날짜를 골랐으니, 예약 링크를 눌러 실제 가격을 확인하세요.",
+      ],
+      stats: {
+        latencyMs: Date.now() - start,
+        webSearches: 0,
+        inputTokens: u.inputTokens,
+        outputTokens: u.outputTokens,
+        estimatedCostUsd: 0,
+      },
+    };
+  }
 
   // 남은 시간이 지나면 진행 중인 검색을 끊고 모인 결과로 응답한다 (PRD §8 부분 응답)
   const remainingMs = Math.max(0, config.search.timeoutMs - (Date.now() - start));
@@ -134,8 +158,10 @@ async function run(
   const u = usage.current;
   return {
     question,
+    mode: "claude",
     parsed: summary,
     recommendations,
+    suggestions: [],
     partial,
     notices,
     stats: {

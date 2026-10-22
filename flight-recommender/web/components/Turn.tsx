@@ -4,6 +4,7 @@ import { koWeekday } from "@/lib/search/dates";
 
 import type { TurnState } from "./App";
 import { RecommendationCard } from "./RecommendationCard";
+import { SuggestionCard } from "./SuggestionCard";
 
 const SOURCE_LABEL = { TABLE: "추천 목록", LLM: "AI 추천", USER: "지정" } as const;
 
@@ -68,14 +69,19 @@ export function Turn({ turn }: { turn: TurnState }) {
           {result.recommendations.map((r) => (
             <RecommendationCard key={`${r.city}-${r.departDate}`} rec={r} />
           ))}
+          {result.suggestions.map((s, i) => (
+            <SuggestionCard key={`${s.city}-${s.departDate}`} suggestion={s} top={i === 0} />
+          ))}
           <ul className="notice">
             {result.notices.map((n) => (
               <li key={n}>{n}</li>
             ))}
           </ul>
           <div className="stats">
-            {(result.stats.latencyMs / 1000).toFixed(0)}초 · 웹 검색 {result.stats.webSearches}회 · 약 $
-            {result.stats.estimatedCostUsd.toFixed(3)}
+            {(result.stats.latencyMs / 1000).toFixed(0)}초 ·{" "}
+            {result.mode === "free"
+              ? "무료 체험판"
+              : `웹 검색 ${result.stats.webSearches}회 · 약 $${result.stats.estimatedCostUsd.toFixed(3)}`}
           </div>
         </>
       )}

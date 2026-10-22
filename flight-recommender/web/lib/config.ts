@@ -1,5 +1,11 @@
 /** 서버 설정. 값은 환경변수로 덮어쓸 수 있다. */
 export const config = {
+  /**
+   * claude: Anthropic API로 해석 + 웹 검색 가격까지 (ANTHROPIC_API_KEY 필요)
+   * free: Vercel AI Gateway 무료 모델로 해석만 하고, 도시·날짜 추천과 예약 링크를 보여준다 (키 불필요)
+   */
+  mode: process.env.ANTHROPIC_API_KEY ? ("claude" as const) : ("free" as const),
+  freeModel: process.env.FREE_MODEL ?? "minimax/minimax-m3.1-flash",
   parseModel: process.env.PARSE_MODEL ?? "claude-opus-5-5",
   searchModel: process.env.SEARCH_MODEL ?? "claude-opus-5-5",
   // 비용 추정용 단가 (USD). 실제 단가는 Anthropic 가격표로 확인
